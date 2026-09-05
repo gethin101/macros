@@ -119,6 +119,42 @@
       color: var(--accent);
     }
 
+    .target-progress {
+      margin-top: 1rem;
+      display: grid;
+      gap: 0.65rem;
+    }
+
+    .target-row {
+      background: #0b1220;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 12px;
+      padding: 0.65rem 0.75rem;
+    }
+
+    .target-row header {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .target-bar {
+      width: 100%;
+      height: 10px;
+      background: rgba(148, 163, 184, 0.25);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .target-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #22d3ee, #14b8a6);
+      transition: width 0.2s ease;
+    }
+
     .board-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
@@ -176,6 +212,25 @@
         <div class="summary-card"><p>Carbs</p><strong id="totalCarbs">0 g</strong></div>
         <div class="summary-card"><p>Sugar</p><strong id="totalSugar">0 g</strong></div>
       </div>
+      <div class="target-progress">
+        <p class="meta">Estimated daily targets for a nearly 16-year-old, 60kg, 5'7", with gym 3x/week + cardio.</p>
+        <div class="target-row">
+          <header><strong>Calories</strong><span id="caloriesProgressText">0 / 2600 kcal (0%)</span></header>
+          <div class="target-bar"><div id="caloriesProgressFill" class="target-fill"></div></div>
+        </div>
+        <div class="target-row">
+          <header><strong>Protein</strong><span id="proteinProgressText">0 / 120 g (0%)</span></header>
+          <div class="target-bar"><div id="proteinProgressFill" class="target-fill"></div></div>
+        </div>
+        <div class="target-row">
+          <header><strong>Carbs</strong><span id="carbsProgressText">0 / 330 g (0%)</span></header>
+          <div class="target-bar"><div id="carbsProgressFill" class="target-fill"></div></div>
+        </div>
+        <div class="target-row">
+          <header><strong>Sugar</strong><span id="sugarProgressText">0 / 90 g (0%)</span></header>
+          <div class="target-bar"><div id="sugarProgressFill" class="target-fill"></div></div>
+        </div>
+      </div>
     </section>
 
     <section class="board">
@@ -224,6 +279,18 @@
       { name: "Costa medium salted caramel frappe (cream, no coffee)", calories: 390, protein: 6, carbs: 56, sugar: 47 },
       { name: "Starbucks iced chai latte", calories: 180, protein: 5, carbs: 31, sugar: 29 },
       { name: "Chocolate cookie", calories: 210, protein: 2.5, carbs: 29, sugar: 16 },
+      { name: "Chocolate brownie", calories: 310, protein: 3.8, carbs: 42, sugar: 28 },
+      { name: "Chocolate milkshake", calories: 360, protein: 11, carbs: 48, sugar: 44 },
+      { name: "Costa hot chocolate", calories: 320, protein: 11, carbs: 46, sugar: 39 },
+      { name: "Bacon sandwich", calories: 430, protein: 18, carbs: 36, sugar: 4 },
+      { name: "Croissant", calories: 230, protein: 4.7, carbs: 26, sugar: 6.5 },
+      { name: "Pain au chocolat", calories: 300, protein: 5.5, carbs: 33, sugar: 10 },
+      { name: "Porridge", calories: 220, protein: 8, carbs: 35, sugar: 8 },
+      { name: "Spag bol (carrot, onion, minced meat, fusilli)", calories: 760, protein: 43, carbs: 87, sugar: 10 },
+      { name: "Toad in the hole", calories: 650, protein: 27, carbs: 50, sugar: 4.5 },
+      { name: "Steak pie", calories: 610, protein: 23, carbs: 46, sugar: 3.5 },
+      { name: "Tuna pasta bake", calories: 560, protein: 34, carbs: 58, sugar: 5.5 },
+      { name: "Steak", calories: 420, protein: 45, carbs: 0, sugar: 0 },
       { name: "Roast dinner", calories: 620, protein: 47, carbs: 45, sugar: 7 },
       { name: "Pizza (portion)", calories: 320, protein: 13, carbs: 34, sugar: 4 },
       { name: "Chips (portion)", calories: 340, protein: 4, carbs: 44, sugar: 0.5 },
@@ -234,6 +301,7 @@
     ];
 
     const totals = { calories: 0, protein: 0, carbs: 0, sugar: 0 };
+    const targets = { calories: 2600, protein: 120, carbs: 330, sugar: 90 };
     const boardGrid = document.getElementById("boardGrid");
     const logList = document.getElementById("logList");
     const searchInput = document.getElementById("searchInput");
@@ -247,6 +315,19 @@
       document.getElementById("totalProtein").textContent = `${format(totals.protein)} g`;
       document.getElementById("totalCarbs").textContent = `${format(totals.carbs)} g`;
       document.getElementById("totalSugar").textContent = `${format(totals.sugar)} g`;
+      updateTargetBars();
+    }
+
+    function updateTargetBars() {
+      ["calories", "protein", "carbs", "sugar"].forEach((macro) => {
+        const total = totals[macro];
+        const target = targets[macro];
+        const percent = Math.round((total / target) * 100);
+        const barPercent = Math.min(percent, 100);
+        document.getElementById(`${macro}ProgressFill`).style.width = `${barPercent}%`;
+        document.getElementById(`${macro}ProgressText`).textContent =
+          `${format(total)} / ${format(target)} ${macro === "calories" ? "kcal" : "g"} (${percent}%)`;
+      });
     }
 
     function addFood(food) {
