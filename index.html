@@ -156,7 +156,7 @@
       height: 100%;
       width: 0%;
       background: linear-gradient(90deg, #22d3ee, #14b8a6);
-      transition: width 0.2s ease;
+      transition: width 0.2s ease, background 0.2s ease;
     }
 
     .board-grid {
@@ -196,6 +196,36 @@
 
     #logList li {
       margin-bottom: 0.4rem;
+    }
+
+    .report {
+      display: none;
+    }
+
+    .report.visible {
+      display: block;
+    }
+
+    .report table {
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 700px;
+      margin-top: 0.6rem;
+    }
+
+    .report th,
+    .report td {
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      padding: 0.45rem;
+      text-align: left;
+    }
+
+    .report .good {
+      color: #4ade80;
+    }
+
+    .report .bad {
+      color: #f87171;
     }
   </style>
 </head>
@@ -247,6 +277,11 @@
       <strong>Today’s food items</strong>
       <ol id="logList"></ol>
     </section>
+
+    <section class="report" id="dayReport">
+      <strong>Daily report</strong>
+      <div id="dayReportContent" class="meta">Add foods and press “Export Day Report” to generate your report here.</div>
+    </section>
   </main>
 
   <script>
@@ -281,7 +316,7 @@
       { name: "Favorina spiced biscuit", calories: 65, protein: 1, carbs: 10, sugar: 5 },
       { name: "Chai latte", calories: 190, protein: 6, carbs: 30, sugar: 24 },
       { name: "Costa chai latte", calories: 240, protein: 7, carbs: 36, sugar: 30 },
-      { name: "Costa medium salted caramel frappe (cream, no coffee)", calories: 390, protein: 6, carbs: 56, sugar: 47 },
+      { name: "Costa frappe", calories: 390, protein: 6, carbs: 56, sugar: 47 },
       { name: "Starbucks iced chai latte", calories: 180, protein: 5, carbs: 31, sugar: 29 },
       { name: "Chocolate cookie", calories: 210, protein: 2.5, carbs: 29, sugar: 16 },
       { name: "Chocolate brownie", calories: 310, protein: 3.8, carbs: 42, sugar: 28 },
@@ -291,7 +326,7 @@
       { name: "Croissant", calories: 230, protein: 4.7, carbs: 26, sugar: 6.5 },
       { name: "Pain au chocolat", calories: 300, protein: 5.5, carbs: 33, sugar: 10 },
       { name: "Porridge", calories: 220, protein: 8, carbs: 35, sugar: 8 },
-      { name: "Spag bol (carrot, onion, minced meat, fusilli)", calories: 760, protein: 43, carbs: 87, sugar: 10 },
+      { name: "Spag bol", calories: 760, protein: 43, carbs: 87, sugar: 10 },
       { name: "Toad in the hole", calories: 650, protein: 27, carbs: 50, sugar: 4.5 },
       { name: "Steak pie", calories: 610, protein: 23, carbs: 46, sugar: 3.5 },
       { name: "Tuna pasta bake", calories: 560, protein: 34, carbs: 58, sugar: 5.5 },
@@ -300,6 +335,7 @@
       { name: "Pizza (portion)", calories: 320, protein: 13, carbs: 34, sugar: 4 },
       { name: "Chips (portion)", calories: 340, protein: 4, carbs: 44, sugar: 0.5 },
       { name: "Crisps (pack)", calories: 150, protein: 2, carbs: 15, sugar: 0.6 },
+      { name: "Doritos (portion)", calories: 150, protein: 2, carbs: 16, sugar: 1 },
       { name: "Doritos (portion+)", calories: 190, protein: 2.6, carbs: 20, sugar: 1.2 },
       { name: "Popcorn sweet+salted", calories: 160, protein: 2.4, carbs: 24, sugar: 8 },
       { name: "Popcorn plain", calories: 120, protein: 3.6, carbs: 19, sugar: 0.5 }
@@ -330,10 +366,25 @@
         const target = targets[macro];
         const percent = Math.round((total / target) * 100);
         const barPercent = Math.min(percent, 100);
-        document.getElementById(`${macro}ProgressFill`).style.width = `${barPercent}%`;
+        const fill = document.getElementById(`${macro}ProgressFill`);
+        fill.style.width = `${barPercent}%`;
+        fill.style.background = getProgressFill(percent);
         document.getElementById(`${macro}ProgressText`).textContent =
           `${format(total)} / ${format(target)} ${macro === "calories" ? "kcal" : "g"} (${percent}%)`;
       });
+    }
+
+    function getProgressFill(percent) {
+      if (percent < 60) {
+        return "linear-gradient(90deg, #ef4444, #dc2626)";
+      }
+      if (percent < 90) {
+        return "linear-gradient(90deg, #f59e0b, #d97706)";
+      }
+      if (percent <= 110) {
+        return "linear-gradient(90deg, #22c55e, #16a34a)";
+      }
+      return "linear-gradient(90deg, #f97316, #ea580c)";
     }
 
     function addFood(food) {
@@ -424,6 +475,8 @@
 
     function exportDayReport() {
       const { goodAt, needsWork, suggestions } = buildMacroReview();
+      const dayReport = document.getElementById("dayReport");
+      const dayReportContent = document.getElementById("dayReportContent");
       const goalRows = [
         ["Calories", totals.calories, targets.calories, "kcal"],
         ["Protein", totals.protein, targets.protein, "g"],
@@ -438,56 +491,35 @@
         })
         .join("");
 
-      const win = window.open("", "_blank", "noopener,noreferrer");
-      if (!win) {
-        alert("Popup blocked. Please allow popups to export your report.");
-        return;
-      }
-
-      win.document.write(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Daily Macro Report</title>
-  <style>
-    body { font-family: Inter, system-ui, sans-serif; margin: 1.2rem; line-height: 1.45; color: #0f172a; }
-    h1, h2 { margin-bottom: 0.4rem; }
-    section { margin-bottom: 1rem; }
-    table { border-collapse: collapse; width: 100%; max-width: 700px; }
-    th, td { border: 1px solid #cbd5e1; padding: 0.45rem; text-align: left; }
-    .good { color: #166534; }
-    .bad { color: #991b1b; }
-  </style>
-</head>
-<body>
-  <h1>Daily Macro Report</h1>
-  <p>Estimated targets for nearly 16 years old, 60kg, 5'7", gym 3x/week + cardio.</p>
+      dayReportContent.innerHTML = `
+  <h2>Daily Macro Report</h2>
+  <p class="meta">Estimated targets for nearly 16 years old, 60kg, 5'7", gym 3x/week + cardio.</p>
   <section>
-    <h2>Foods Logged</h2>
+    <h3>Foods Logged</h3>
     <ul>${buildFoodsListHtml()}</ul>
   </section>
   <section>
-    <h2>Goals vs Actual</h2>
+    <h3>Goals vs Actual</h3>
     <table>
       <thead><tr><th>Macro</th><th>Actual</th><th>Goal</th><th>Progress</th></tr></thead>
       <tbody>${goalTableHtml}</tbody>
     </table>
   </section>
   <section>
-    <h2>What You Were Good At</h2>
+    <h3>What You Were Good At</h3>
     <ul class="good">${goodAt.map((item) => `<li>${item}</li>`).join("")}</ul>
   </section>
   <section>
-    <h2>What Needs Work</h2>
+    <h3>What Needs Work</h3>
     <ul class="bad">${needsWork.map((item) => `<li>${item}</li>`).join("") || "<li>No major issues today.</li>"}</ul>
   </section>
   <section>
-    <h2>How to Improve Next Time</h2>
+    <h3>How to Improve Next Time</h3>
     <ul>${suggestions.map((item) => `<li>${item}</li>`).join("")}</ul>
   </section>
-</body>
-</html>`);
-      win.document.close();
+      `;
+      dayReport.classList.add("visible");
+      dayReport.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     function renderBoard(filterText = "") {
