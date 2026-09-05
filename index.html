@@ -1,1 +1,298 @@
-hi
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Macro Soundboard</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --panel-soft: #334155;
+      --text: #f8fafc;
+      --accent: #22d3ee;
+      --accent-soft: #155e75;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(160deg, #020617, #0f172a 40%, #111827);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    .app {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      gap: 1rem;
+    }
+
+    .header,
+    .summary,
+    .log,
+    .board {
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 14px;
+      padding: 1rem;
+    }
+
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.35rem;
+    }
+
+    .controls {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    input[type="search"] {
+      width: min(350px, 80vw);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: #0b1220;
+      color: var(--text);
+      border-radius: 10px;
+      padding: 0.6rem 0.8rem;
+      outline: none;
+    }
+
+    button {
+      border: none;
+      background: var(--panel-soft);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 0.6rem 0.9rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:hover {
+      filter: brightness(1.08);
+    }
+
+    .reset-btn {
+      background: var(--danger);
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .summary-card {
+      background: #0b1220;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 12px;
+      padding: 0.7rem;
+    }
+
+    .summary-card p {
+      margin: 0;
+      opacity: 0.8;
+      font-size: 0.8rem;
+    }
+
+    .summary-card strong {
+      display: block;
+      margin-top: 0.25rem;
+      font-size: 1.1rem;
+      color: var(--accent);
+    }
+
+    .board-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 0.6rem;
+      margin-top: 0.8rem;
+    }
+
+    .food-btn {
+      text-align: left;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: #0b1220;
+      min-height: 80px;
+      display: grid;
+      gap: 0.2rem;
+    }
+
+    .food-btn small {
+      opacity: 0.75;
+      font-size: 0.72rem;
+      line-height: 1.2;
+    }
+
+    .meta {
+      margin: 0;
+      font-size: 0.8rem;
+      opacity: 0.75;
+    }
+
+    #logList {
+      margin: 0.8rem 0 0;
+      padding-left: 1rem;
+      max-height: 250px;
+      overflow: auto;
+    }
+
+    #logList li {
+      margin-bottom: 0.4rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="header">
+      <h1>Daily Macro Soundboard</h1>
+      <div class="controls">
+        <input id="searchInput" type="search" placeholder="Search foods..." />
+        <button class="reset-btn" id="resetBtn">Reset Day</button>
+      </div>
+    </section>
+
+    <section class="summary">
+      <div class="summary-grid">
+        <div class="summary-card"><p>Calories</p><strong id="totalCalories">0 kcal</strong></div>
+        <div class="summary-card"><p>Protein</p><strong id="totalProtein">0 g</strong></div>
+        <div class="summary-card"><p>Carbs</p><strong id="totalCarbs">0 g</strong></div>
+        <div class="summary-card"><p>Sugar</p><strong id="totalSugar">0 g</strong></div>
+      </div>
+    </section>
+
+    <section class="board">
+      <p class="meta">Estimated portions for a teen (15–16), quick-add style.</p>
+      <div id="boardGrid" class="board-grid"></div>
+    </section>
+
+    <section class="log">
+      <strong>Today’s clicks</strong>
+      <ol id="logList"></ol>
+    </section>
+  </main>
+
+  <script>
+    const foods = [
+      { name: "Apple", calories: 95, protein: 0.5, carbs: 25, sugar: 19 },
+      { name: "Banana", calories: 105, protein: 1.3, carbs: 27, sugar: 14 },
+      { name: "Blueberries (handful)", calories: 45, protein: 0.6, carbs: 11, sugar: 7 },
+      { name: "Greek yoghurt", calories: 130, protein: 17, carbs: 6, sugar: 5 },
+      { name: "Grapes (handful)", calories: 60, protein: 0.6, carbs: 16, sugar: 15 },
+      { name: "Fried egg", calories: 90, protein: 6, carbs: 0.5, sugar: 0.2 },
+      { name: "Toast (1 slice)", calories: 95, protein: 3.5, carbs: 17, sugar: 1.5 },
+      { name: "Weetabix (1 biscuit)", calories: 68, protein: 2.6, carbs: 13.5, sugar: 1.2 },
+      { name: "Glass of milk", calories: 120, protein: 8, carbs: 12, sugar: 12 },
+      { name: "Overnight oats", calories: 510, protein: 39, carbs: 49, sugar: 20 },
+      { name: "Chicken wrap", calories: 500, protein: 49, carbs: 32, sugar: 3 },
+      { name: "Bacon wrap", calories: 720, protein: 28, carbs: 58, sugar: 7 },
+      { name: "Ham & cheese sandwich", calories: 480, protein: 29, carbs: 42, sugar: 5 },
+      { name: "Tomato pasta", calories: 780, protein: 48, carbs: 86, sugar: 11 },
+      { name: "Chicken & rice wrap", calories: 610, protein: 48, carbs: 52, sugar: 3 },
+      { name: "Toasted chicken mayo sandwich", calories: 450, protein: 37, carbs: 34, sugar: 4 },
+      { name: "Portion of seeds", calories: 120, protein: 4, carbs: 4, sugar: 0.2 },
+      { name: "Carrot sticks", calories: 30, protein: 0.6, carbs: 7, sugar: 3.4 },
+      { name: "Cucumber slices", calories: 12, protein: 0.5, carbs: 2.7, sugar: 1.2 },
+      { name: "Protein shake", calories: 200, protein: 25, carbs: 8, sugar: 20 },
+      { name: "Strawberries (handful)", calories: 35, protein: 0.7, carbs: 8, sugar: 5.3 },
+      { name: "Oreo (1)", calories: 53, protein: 0.6, carbs: 8.3, sugar: 4.5 },
+      { name: "Cup of tea", calories: 30, protein: 1, carbs: 4, sugar: 4 },
+      { name: "Hot chocolate", calories: 180, protein: 6, carbs: 28, sugar: 24 },
+      { name: "Favorina spiced biscuit", calories: 65, protein: 1, carbs: 10, sugar: 5 },
+      { name: "Chai latte", calories: 190, protein: 6, carbs: 30, sugar: 24 },
+      { name: "Chocolate cookie", calories: 210, protein: 2.5, carbs: 29, sugar: 16 },
+      { name: "Roast dinner", calories: 620, protein: 47, carbs: 45, sugar: 7 },
+      { name: "Pizza (portion)", calories: 320, protein: 13, carbs: 34, sugar: 4 },
+      { name: "Chips (portion)", calories: 340, protein: 4, carbs: 44, sugar: 0.5 },
+      { name: "Crisps (pack)", calories: 150, protein: 2, carbs: 15, sugar: 0.6 },
+      { name: "Doritos (portion+)", calories: 190, protein: 2.6, carbs: 20, sugar: 1.2 },
+      { name: "Popcorn sweet+salted", calories: 160, protein: 2.4, carbs: 24, sugar: 8 },
+      { name: "Popcorn plain", calories: 120, protein: 3.6, carbs: 19, sugar: 0.5 }
+    ];
+
+    const totals = { calories: 0, protein: 0, carbs: 0, sugar: 0 };
+    const boardGrid = document.getElementById("boardGrid");
+    const logList = document.getElementById("logList");
+    const searchInput = document.getElementById("searchInput");
+
+    function format(value) {
+      return Number.isInteger(value) ? value : value.toFixed(1);
+    }
+
+    function updateSummary() {
+      document.getElementById("totalCalories").textContent = `${format(totals.calories)} kcal`;
+      document.getElementById("totalProtein").textContent = `${format(totals.protein)} g`;
+      document.getElementById("totalCarbs").textContent = `${format(totals.carbs)} g`;
+      document.getElementById("totalSugar").textContent = `${format(totals.sugar)} g`;
+    }
+
+    function addFood(food) {
+      totals.calories += food.calories;
+      totals.protein += food.protein;
+      totals.carbs += food.carbs;
+      totals.sugar += food.sugar;
+
+      const item = document.createElement("li");
+      item.textContent = `${food.name} (+${format(food.calories)} kcal, P ${format(food.protein)}g, C ${format(food.carbs)}g, S ${format(food.sugar)}g)`;
+      logList.prepend(item);
+      updateSummary();
+    }
+
+    function renderBoard(filterText = "") {
+      boardGrid.innerHTML = "";
+      const query = filterText.trim().toLowerCase();
+      const filtered = foods.filter((f) => f.name.toLowerCase().includes(query));
+
+      filtered.forEach((food) => {
+        const button = document.createElement("button");
+        button.className = "food-btn";
+        button.type = "button";
+        button.innerHTML = `
+          <strong>${food.name}</strong>
+          <small>${format(food.calories)} kcal | P ${format(food.protein)}g | C ${format(food.carbs)}g | S ${format(food.sugar)}g</small>
+        `;
+        button.addEventListener("click", () => addFood(food));
+        boardGrid.appendChild(button);
+      });
+
+      if (filtered.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "meta";
+        empty.textContent = "No foods match your search.";
+        boardGrid.appendChild(empty);
+      }
+    }
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      totals.calories = 0;
+      totals.protein = 0;
+      totals.carbs = 0;
+      totals.sugar = 0;
+      logList.innerHTML = "";
+      updateSummary();
+    });
+
+    searchInput.addEventListener("input", (event) => renderBoard(event.target.value));
+
+    updateSummary();
+    renderBoard();
+  </script>
+</body>
+</html>
