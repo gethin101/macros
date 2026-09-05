@@ -93,6 +93,10 @@
       background: var(--danger);
     }
 
+    .export-btn {
+      background: var(--accent-soft);
+    }
+
     .summary-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -201,6 +205,7 @@
       <h1>Daily Macro Soundboard</h1>
       <div class="controls">
         <input id="searchInput" type="search" placeholder="Search foods..." />
+        <button class="export-btn" id="exportBtn">Export Day Report</button>
         <button class="reset-btn" id="resetBtn">Reset Day</button>
       </div>
     </section>
@@ -215,11 +220,11 @@
       <div class="target-progress">
         <p class="meta">Estimated daily targets for a nearly 16-year-old, 60kg, 5'7", with gym 3x/week + cardio.</p>
         <div class="target-row">
-          <header><strong>Calories</strong><span id="caloriesProgressText">0 / 2600 kcal (0%)</span></header>
+          <header><strong>Calories</strong><span id="caloriesProgressText">0 / 2800 kcal (0%)</span></header>
           <div class="target-bar"><div id="caloriesProgressFill" class="target-fill"></div></div>
         </div>
         <div class="target-row">
-          <header><strong>Protein</strong><span id="proteinProgressText">0 / 120 g (0%)</span></header>
+          <header><strong>Protein</strong><span id="proteinProgressText">0 / 110 g (0%)</span></header>
           <div class="target-bar"><div id="proteinProgressFill" class="target-fill"></div></div>
         </div>
         <div class="target-row">
@@ -301,7 +306,8 @@
     ];
 
     const totals = { calories: 0, protein: 0, carbs: 0, sugar: 0 };
-    const targets = { calories: 2600, protein: 120, carbs: 330, sugar: 90 };
+    const targets = { calories: 2800, protein: 110, carbs: 330, sugar: 90 };
+    const consumedFoods = [];
     const boardGrid = document.getElementById("boardGrid");
     const logList = document.getElementById("logList");
     const searchInput = document.getElementById("searchInput");
@@ -335,11 +341,153 @@
       totals.protein += food.protein;
       totals.carbs += food.carbs;
       totals.sugar += food.sugar;
+      consumedFoods.push(food);
 
       const item = document.createElement("li");
       item.textContent = `${food.name} (+${format(food.calories)} kcal, P ${format(food.protein)}g, C ${format(food.carbs)}g, S ${format(food.sugar)}g)`;
       logList.prepend(item);
       updateSummary();
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function buildMacroReview() {
+      const goodAt = [];
+      const needsWork = [];
+      const suggestions = [];
+
+      const caloriesRatio = totals.calories / targets.calories;
+      if (caloriesRatio >= 0.9 && caloriesRatio <= 1.1) {
+        goodAt.push("Calories are in a strong range for your target.");
+      } else if (caloriesRatio < 0.9) {
+        needsWork.push("Calories are under target.");
+        suggestions.push("Add one extra balanced meal or calorie-dense snack (e.g. yoghurt + granola, toast + peanut butter).");
+      } else {
+        needsWork.push("Calories are over target.");
+        suggestions.push("Trim portion sizes slightly or swap one high-calorie snack for fruit or yoghurt.");
+      }
+
+      const proteinRatio = totals.protein / targets.protein;
+      if (proteinRatio >= 0.9) {
+        goodAt.push("Protein intake supports muscle growth and recovery.");
+      } else {
+        needsWork.push("Protein is under target.");
+        suggestions.push("Add a lean protein portion like chicken, eggs, tuna, Greek yoghurt, or a protein shake.");
+      }
+
+      const carbsRatio = totals.carbs / targets.carbs;
+      if (carbsRatio >= 0.8 && carbsRatio <= 1.15) {
+        goodAt.push("Carbs are well matched for gym + cardio energy.");
+      } else if (carbsRatio < 0.8) {
+        needsWork.push("Carbs are a bit low for training fuel.");
+        suggestions.push("Add oats, rice, pasta, potatoes, or fruit around training sessions.");
+      } else {
+        needsWork.push("Carbs are quite high today.");
+        suggestions.push("Balance carb-heavy foods with more veg and protein in later meals.");
+      }
+
+      if (totals.sugar <= targets.sugar) {
+        goodAt.push("Sugar stayed within the suggested limit.");
+      } else {
+        needsWork.push("Sugar is above the suggested limit.");
+        suggestions.push("Swap one sugary drink/snack for a lower-sugar option like milk, fruit, or dark chocolate.");
+      }
+
+      if (suggestions.length === 0) {
+        suggestions.push("Keep this structure tomorrow and stay consistent through the week.");
+      }
+
+      return { goodAt, needsWork, suggestions };
+    }
+
+    function buildFoodsListHtml() {
+      if (consumedFoods.length === 0) {
+        return "<li>No foods logged yet today.</li>";
+      }
+
+      const counts = new Map();
+      consumedFoods.forEach((food) => {
+        counts.set(food.name, (counts.get(food.name) || 0) + 1);
+      });
+
+      return Array.from(counts.entries())
+        .map(([name, count]) => `<li>${escapeHtml(name)}${count > 1 ? ` ×${count}` : ""}</li>`)
+        .join("");
+    }
+
+    function exportDayReport() {
+      const { goodAt, needsWork, suggestions } = buildMacroReview();
+      const goalRows = [
+        ["Calories", totals.calories, targets.calories, "kcal"],
+        ["Protein", totals.protein, targets.protein, "g"],
+        ["Carbs", totals.carbs, targets.carbs, "g"],
+        ["Sugar", totals.sugar, targets.sugar, "g"]
+      ];
+
+      const goalTableHtml = goalRows
+        .map(([label, total, target, unit]) => {
+          const percent = Math.round((total / target) * 100);
+          return `<tr><td>${label}</td><td>${format(total)} ${unit}</td><td>${format(target)} ${unit}</td><td>${percent}%</td></tr>`;
+        })
+        .join("");
+
+      const win = window.open("", "_blank", "noopener,noreferrer");
+      if (!win) {
+        alert("Popup blocked. Please allow popups to export your report.");
+        return;
+      }
+
+      win.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Daily Macro Report</title>
+  <style>
+    body { font-family: Inter, system-ui, sans-serif; margin: 1.2rem; line-height: 1.45; color: #0f172a; }
+    h1, h2 { margin-bottom: 0.4rem; }
+    section { margin-bottom: 1rem; }
+    table { border-collapse: collapse; width: 100%; max-width: 700px; }
+    th, td { border: 1px solid #cbd5e1; padding: 0.45rem; text-align: left; }
+    .good { color: #166534; }
+    .bad { color: #991b1b; }
+  </style>
+</head>
+<body>
+  <h1>Daily Macro Report</h1>
+  <p>Estimated targets for nearly 16 years old, 60kg, 5'7", gym 3x/week + cardio.</p>
+  <section>
+    <h2>Foods Logged</h2>
+    <ul>${buildFoodsListHtml()}</ul>
+  </section>
+  <section>
+    <h2>Goals vs Actual</h2>
+    <table>
+      <thead><tr><th>Macro</th><th>Actual</th><th>Goal</th><th>Progress</th></tr></thead>
+      <tbody>${goalTableHtml}</tbody>
+    </table>
+  </section>
+  <section>
+    <h2>What You Were Good At</h2>
+    <ul class="good">${goodAt.map((item) => `<li>${item}</li>`).join("")}</ul>
+  </section>
+  <section>
+    <h2>What Needs Work</h2>
+    <ul class="bad">${needsWork.map((item) => `<li>${item}</li>`).join("") || "<li>No major issues today.</li>"}</ul>
+  </section>
+  <section>
+    <h2>How to Improve Next Time</h2>
+    <ul>${suggestions.map((item) => `<li>${item}</li>`).join("")}</ul>
+  </section>
+</body>
+</html>`);
+      win.document.close();
     }
 
     function renderBoard(filterText = "") {
@@ -372,10 +520,12 @@
       totals.protein = 0;
       totals.carbs = 0;
       totals.sugar = 0;
+      consumedFoods.length = 0;
       logList.innerHTML = "";
       updateSummary();
     });
 
+    document.getElementById("exportBtn").addEventListener("click", exportDayReport);
     searchInput.addEventListener("input", (event) => renderBoard(event.target.value));
 
     updateSummary();
